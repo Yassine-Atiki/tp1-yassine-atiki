@@ -7,6 +7,10 @@ import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 
+import ma.emsi.yassine.atiki.tp1yassineatiki.llm.JsonAdapterPourGemini;
+import ma.emsi.yassine.atiki.tp1yassineatiki.llm.LlmInteraction;
+import java.util.Arrays;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +23,13 @@ import java.util.List;
 @Named
 @ViewScoped
 public class Bb implements Serializable {
+
+
+    private boolean debug = false;
+
+    private String texteRequeteJson;
+    private String texteReponseJson;
+
 
     /**
      * Rôle "système" que l'on attribuera plus tard à un LLM.
@@ -54,7 +65,7 @@ public class Bb implements Serializable {
      * Service pour modifier la question et générer la réponse.
      */
     @Inject
-    private GenerateurReponse generateurReponse;
+    private JsonAdapterPourGemini jsonAdapter;
 
     /**
      * Contexte JSF. Utilisé pour qu'un message d'erreur s'affiche dans le formulaire.
@@ -92,6 +103,31 @@ public class Bb implements Serializable {
         return reponse;
     }
 
+
+    public boolean isDebug() {
+        return debug;
+    }
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }
+
+    public String getTexteRequeteJson() {
+        return texteRequeteJson;
+    }
+
+    public void setTexteRequeteJson(String texteRequeteJson) {
+        this.texteRequeteJson = texteRequeteJson;
+    }
+
+    public String getTexteReponseJson() {
+        return texteReponseJson;
+    }
+
+    public void setTexteReponseJson(String texteReponseJson) {
+        this.texteReponseJson = texteReponseJson;
+    }
+
     /**
      * setter indispensable pour le textarea.
      *
@@ -117,28 +153,42 @@ public class Bb implements Serializable {
      *
      * @return null pour rester sur la même page.
      */
+
     public String envoyer() {
         if (question == null || question.isBlank()) {
-            // Erreur ! Le formulaire va être réaffiché en réponse à la requête POST, avec un message d'erreur.
+            // Erreur si la question est vide
             FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR,
                     "Texte question vide", "Il manque le texte de la question");
             facesContext.addMessage(null, message);
             return null;
         }
 
-        // Traite la question pour construire la réponse.
-        String roleSystemePourModification = null;
-        if (this.conversation.isEmpty()) { // Si la conversation n'a pas encore commencé
-            roleSystemePourModification = this.roleSysteme; // Pour GenerateurReponse.modifier()
-            // Fige la liste déroulante qui permet de choisir le rôle système
+        // Au début de la conversation, envoyer le rôle système
+        if (this.conversation.isEmpty()) {
+            jsonAdapter.setSystemRole(this.roleSysteme);
             this.roleSystemeChangeable = false;
         }
-        this.reponse += this.generateurReponse.genererReponse(this.question, roleSystemePourModification);
 
-        // La conversation contient l'historique des questions-réponses depuis le début.
+        // Appel à l'API du LLM
+        try {
+            LlmInteraction interaction = jsonAdapter.envoyerRequete(question);
+            this.reponse = interaction.reponseExtraite();
+            this.texteRequeteJson = interaction.questionJson();
+            this.texteReponseJson = interaction.reponseJson();
+        } catch (Exception e) {
+            this.reponse = "Erreur : " + e.getMessage();
+            FacesMessage message =
+                    new FacesMessage(FacesMessage.SEVERITY_ERROR,
+                            "Problème de connexion avec l'API du LLM",
+                            "Problème de connexion avec l'API du LLM" + e.getMessage()
+                                    + "\n" + Arrays.toString(e.getStackTrace()));
+            facesContext.addMessage(null, message);
+        }
+
         afficherConversation();
         return null;
     }
+
 
     /**
      * Pour un nouveau chat.
