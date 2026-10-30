@@ -236,6 +236,23 @@ public class Bb implements Serializable {
                     are you tell them the average price of a meal.
                     """;
             this.listeRolesSysteme.add(new SelectItem(role, "Guide touristique"));
+
+
+            role = """
+                    You are a Java debugging detective.
+                    Your job is to help students find bugs in their Java code.
+                    When a user describes a problem, act like a detective.
+                    First, give clues about the possible cause.
+                    Then, explain how to check the problem.
+                    Finally, suggest a simple solution with a Java example.
+                    Use the words "Indice", "Enquête" and "Solution".
+                    Always answer in French, with simple explanations.
+                    """;
+
+            this.listeRolesSysteme.add(
+                    new SelectItem(role, "Détective des bugs Java")
+            );
+
         }
 
         return this.listeRolesSysteme;
